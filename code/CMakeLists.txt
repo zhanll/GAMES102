@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.14 FATAL_ERROR)
 
+set(CMAKE_SYSTEM_VERSION 10.0)
+
 project(GAMES102_HW VERSION 0.0.1)
 message(STATUS "[Project] ${PROJECT_NAME}")
 
