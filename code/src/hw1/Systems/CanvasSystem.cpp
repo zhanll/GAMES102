@@ -6,6 +6,48 @@
 
 using namespace Ubpa;
 
+float PAI(const std::vector<Ubpa::pointf2>& P, int j, float x)
+{
+	int n = P.size();
+	float numerator = 1;
+	float denominator = 1;
+	for (int k=0; k<n; ++k)
+	{
+		if (j == k)
+		{
+			continue;
+		}
+		numerator *= (x - P[k][0]);
+		denominator *= (P[j][0] - P[k][0]);
+	}
+	return numerator / denominator;
+}
+
+float Polynomial(const std::vector<Ubpa::pointf2>& P, float x)
+{
+	int n = P.size();
+	float sum = 0;
+	for (int j=0; j<n; ++j)
+	{
+		sum += P[j][1] * PAI(P, j, x);
+	}
+	return sum;
+}
+
+float Gauss(const std::vector<Ubpa::pointf2>& P, float x)
+{
+	int n = P.size();
+	float theta = 1;
+	Eigen::Matrix<float, n, n> A;
+	for (int row=0; row<n; ++row)
+	{
+		for (int col=0; col<n; ++col)
+		{
+			A << (std::exp());
+		}
+	}
+}
+
 void CanvasSystem::OnUpdate(Ubpa::UECS::Schedule& schedule) {
 	schedule.RegisterCommand([](Ubpa::UECS::World* w) {
 		auto data = w->entityMngr.GetSingleton<CanvasData>();
@@ -15,7 +57,7 @@ void CanvasSystem::OnUpdate(Ubpa::UECS::Schedule& schedule) {
 		if (ImGui::Begin("Canvas")) {
 			ImGui::Checkbox("Enable grid", &data->opt_enable_grid);
 			ImGui::Checkbox("Enable context menu", &data->opt_enable_context_menu);
-			ImGui::Text("Mouse Left: drag to add lines,\nMouse Right: drag to scroll, click for context menu.");
+			ImGui::Text("Mouse Left: click to add points,\nMouse Right: drag to scroll, click for context menu.");
 
 			// Typically you would use a BeginChild()/EndChild() pair to benefit from a clipping region + own scrolling.
 			// Here we demonstrate that this can be replaced by simple offsetting + custom drawing + PushClipRect/PopClipRect() calls.
@@ -49,18 +91,18 @@ void CanvasSystem::OnUpdate(Ubpa::UECS::Schedule& schedule) {
 			const pointf2 mouse_pos_in_canvas(io.MousePos.x - origin.x, io.MousePos.y - origin.y);
 
 			// Add first and second point
-			if (is_hovered && !data->adding_line && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+			if (is_hovered /*&& !data->adding_line*/ && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
 			{
 				data->points.push_back(mouse_pos_in_canvas);
-				data->points.push_back(mouse_pos_in_canvas);
-				data->adding_line = true;
+				//data->points.push_back(mouse_pos_in_canvas);
+				//data->adding_line = true;
 			}
-			if (data->adding_line)
+			/*if (data->adding_line)
 			{
 				data->points.back() = mouse_pos_in_canvas;
 				if (!ImGui::IsMouseDown(ImGuiMouseButton_Left))
 					data->adding_line = false;
-			}
+			}*/
 
 			// Pan (we use a zero mouse threshold when there's no context menu)
 			// You may decide to make that threshold dynamic based on whether the mouse is hovering something etc.
@@ -77,10 +119,10 @@ void CanvasSystem::OnUpdate(Ubpa::UECS::Schedule& schedule) {
 				ImGui::OpenPopupContextItem("context");
 			if (ImGui::BeginPopup("context"))
 			{
-				if (data->adding_line)
+				/*if (data->adding_line)
 					data->points.resize(data->points.size() - 2);
-				data->adding_line = false;
-				if (ImGui::MenuItem("Remove one", NULL, false, data->points.size() > 0)) { data->points.resize(data->points.size() - 2); }
+				data->adding_line = false;*/
+				if (ImGui::MenuItem("Remove one", NULL, false, data->points.size() > 0)) { data->points.resize(data->points.size() - 1); }
 				if (ImGui::MenuItem("Remove all", NULL, false, data->points.size() > 0)) { data->points.clear(); }
 				ImGui::EndPopup();
 			}
@@ -95,8 +137,34 @@ void CanvasSystem::OnUpdate(Ubpa::UECS::Schedule& schedule) {
 				for (float y = fmodf(data->scrolling[1], GRID_STEP); y < canvas_sz.y; y += GRID_STEP)
 					draw_list->AddLine(ImVec2(canvas_p0.x, canvas_p0.y + y), ImVec2(canvas_p1.x, canvas_p0.y + y), IM_COL32(200, 200, 200, 40));
 			}
-			for (int n = 0; n < data->points.size(); n += 2)
-				draw_list->AddLine(ImVec2(origin.x + data->points[n][0], origin.y + data->points[n][1]), ImVec2(origin.x + data->points[n + 1][0], origin.y + data->points[n + 1][1]), IM_COL32(255, 255, 0, 255), 2.0f);
+			for (int n = 0; n < data->points.size(); n++)
+			{
+				draw_list->AddCircleFilled(ImVec2(origin.x + data->points[n][0], origin.y + data->points[n][1]), 4.0f, IM_COL32(255, 255, 0, 255));
+			}
+			//for (int n = 0; n < data->points.size(); n += 2)
+				//draw_list->AddLine(ImVec2(origin.x + data->points[n][0], origin.y + data->points[n][1]), ImVec2(origin.x + data->points[n + 1][0], origin.y + data->points[n + 1][1]), IM_COL32(255, 255, 0, 255), 2.0f);
+			
+			const int r = 1000;
+			const float step = 1;
+			std::vector<Ubpa::pointf2> ResultPoints;
+			for (int k=0; k<r; ++k)
+			{
+				float x = step * k;
+				float y = Polynomial(data->points, x);
+				ResultPoints.push_back(pointf2(x, y));
+			}
+			for (int i=0; i<ResultPoints.size(); ++i)
+			{
+				ImVec2 P2(origin.x + ResultPoints[i][0], origin.y + ResultPoints[i][1]);
+				ImVec2 P1 = P2;
+				if (i>0)
+				{
+					P1.x = origin.x + ResultPoints[i-1][0];
+					P1.y = origin.y + ResultPoints[i-1][1];
+				}
+				draw_list->AddLine(P1, P2, IM_COL32(0, 255, 255, 255), 1.0f);
+			}
+			
 			draw_list->PopClipRect();
 		}
 
